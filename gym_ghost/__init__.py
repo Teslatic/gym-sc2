@@ -1,4 +1,3 @@
-#from gym.envs.gym_ghost.gym_ghost import GymSc2Env
 from gym.envs.registration import register
 
 register(
