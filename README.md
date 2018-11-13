@@ -4,4 +4,25 @@ Our gym starcraft 2 environment/wrapper
 Setup:
 1. clone repo to desired location
 2. ``` cd gym-sc2/ ```
-2. ``` pip install -e .```
+3. ``` pip install -e .```
+
+Import in python script:
+
+```
+import gym
+import gym_ghost
+```
+
+References:
+General: https://github.com/openai/gym/tree/master/gym/envs
+Example repo: https://github.com/openai/gym-soccer
+
+Deinstallation:
+```
+pip uninstall sc2_v0
+```
+
+Also remove egg info directory in cloned repository (was created during installation)
+```
+rm -rf sc2_v0.egg-info/
+```
