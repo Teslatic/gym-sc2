@@ -1,0 +1,5 @@
+sc2_v0.egg-info/PKG-INFO
+sc2_v0.egg-info/SOURCES.txt
+sc2_v0.egg-info/dependency_links.txt
+sc2_v0.egg-info/requires.txt
+sc2_v0.egg-info/top_level.txt
