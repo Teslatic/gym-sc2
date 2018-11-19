@@ -140,6 +140,8 @@ class GymSc2Env(gym.Env):
         if self.can_do(actions.FUNCTIONS.Move_screen.id):
             action = actions.FUNCTIONS.Move_screen("now",
                                         (self.xy_space[action][0], self.xy_space[action][1]))
+        elif self.can_do(actions.FUNCTIONS.select_army.id):
+            action = actions.FUNCTIONS.select_army("select")
         else:
             action = actions.FUNCTIONS.no_op()
 
@@ -228,7 +230,7 @@ class GymSc2Env(gym.Env):
         format and performing the action on the environment.
         """
         pysc2_action = self.action_fn(action)
-        print(pysc2_action)
+        print('pysc2 action in gym step: {}'.format(pysc2_action))
         observation = self.env.step([pysc2_action])
 
         return self.retrieve_step_info(observation)
