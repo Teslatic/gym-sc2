@@ -36,6 +36,7 @@ class GymSc2Env(gym.Env):
         self.game_steps = 0
         # TODO: initialize observation space and action space
         self.agent_interface = self.setup_interface()
+        self.FIRST_STEP = 0
         self.LAST_STEP = 2
         self.MAX_DISTANCE = np.sqrt(self.screen_dim_x**2 + self.screen_dim_y**2)
         self.MIN_DISTANCE = 0
@@ -111,6 +112,7 @@ class GymSc2Env(gym.Env):
         Input: 'left', 'up', 'right', 'down'
         Output: an PYSC2 compatible action that moves the agent in the selected direction.
         """
+        print('action passed to compass action fn: {}'.format(action))
         if self.can_do(actions.FUNCTIONS.Move_screen.id):
             if action is 'left':
                 if not (self.marine_center[0] <= 0):
@@ -124,6 +126,8 @@ class GymSc2Env(gym.Env):
             if action is 'down':
                 if not (self.marine_center[1] >= 63):
                     return actions.FUNCTIONS.Move_screen("now", self.marine_center + (0, self.step_mul))
+        elif self.can_do(actions.FUNCTIONS.select_army.id):
+            return actions.FUNCTIONS.select_army("select")
         else:
             return actions.FUNCTIONS.no_op()
 
@@ -224,7 +228,10 @@ class GymSc2Env(gym.Env):
         format and performing the action on the environment.
         """
         pysc2_action = self.action_fn(action)
+        print(pysc2_action)
         observation = self.env.step([pysc2_action])
+
+        return self.retrieve_step_info(observation)
 
     def retrieve_step_info(self, observation):
         """
@@ -232,19 +239,30 @@ class GymSc2Env(gym.Env):
         and converts it into gym-like observation tuple.
         """
         state = observation[0].observation.feature_screen.player_relative
+        state2 = observation[0].observation.feature_screen.selected
         beacon_next, marine_next, self.distance_next = self.calc_distance(observation)
         reward = self.reward_fn(observation)
-        done = True if observation[0].step_type.value == self.LAST_STEP else False
+        last = True if observation[0].step_type.value == self.LAST_STEP else False
         # check if needed
-        info = None
+        first = True if observation[0].step_type.value == self.FIRST_STEP else False
 
+        done = last
+        info = None
         self.available_actions = observation[0].observation.available_actions
 
         self.distance = self.distance_next
         self.marine_center = marine_next
         self.beacon_center = beacon_next
 
-        return state, reward, done, info
+        obs = [state,
+               state2,
+               first,
+               last,
+               self.distance,
+               self.marine_center,
+               self.beacon_center]
+
+        return obs, reward, done, info
 
     def calc_distance(self, observation):
         """
@@ -258,16 +276,13 @@ class GymSc2Env(gym.Env):
         marine_center = np.mean(self.xy_locs(screen_selected == 1), axis=0).round()
         beacon_center = np.mean(self.xy_locs(screen_player == 3), axis=0).round()
         if isinstance(marine_center, float):
+            print("instance check for marine center")
             marine_center = beacon_center
 
         distance = math.hypot(beacon_center[0] - marine_center[0],
                               beacon_center[1] - marine_center[1])
 
         return beacon_center, marine_center, distance
-
-
-
-        return self.retrieve_step_info(observation)
 
 
     ##################################################################################
