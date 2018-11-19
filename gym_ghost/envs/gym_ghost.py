@@ -60,7 +60,7 @@ class GymSc2Env(gym.Env):
         self.grid_factor = sc2_env_file['GRID_FACTOR']
         self.action_fn = self.define_action_fn(sc2_env_file['ACTION_TYPE'])
         self.reward_fn = self.define_reward_fn(sc2_env_file['REWARD_TYPE'])
-        self.reset()
+        return self.reset()
 
     def setup_interface(self):
         """
@@ -88,7 +88,7 @@ class GymSc2Env(gym.Env):
 
     def define_action_fn(self, action_type):
         """
-        This method is used to define the action_fn which calculates the agent's action into a 
+        This method is used to define the action_fn which calculates the agent's action into a
         PYSC2-compatible action.
 
         The following action functions are available:
@@ -154,7 +154,7 @@ class GymSc2Env(gym.Env):
         """
         shortcut for checking if action is available at the moment
         """
-        return action in self.available_actions 
+        return action in self.available_actions
 
     def xy_locs(self, mask):
         """
@@ -283,7 +283,3 @@ class GymSc2Env(gym.Env):
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
-
-
-
-
