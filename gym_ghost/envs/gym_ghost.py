@@ -112,7 +112,8 @@ class GymSc2Env(gym.Env):
         Input: 'left', 'up', 'right', 'down'
         Output: an PYSC2 compatible action that moves the agent in the selected direction.
         """
-        print('action passed to compass action fn: {}'.format(action))
+        # print('action passed to compass action fn: {}'.format(action))
+
         if self.can_do(actions.FUNCTIONS.Move_screen.id):
             if action is 'left':
                 if not (self.marine_center[0] <= 0):
@@ -126,7 +127,7 @@ class GymSc2Env(gym.Env):
             if action is 'down':
                 if not (self.marine_center[1] >= 63):
                     return actions.FUNCTIONS.Move_screen("now", self.marine_center + (0, self.step_mul))
-        elif self.can_do(actions.FUNCTIONS.select_army.id):
+        elif action == 'select_army' and self.can_do(actions.FUNCTIONS.select_army.id):
             return actions.FUNCTIONS.select_army("select")
         else:
             return actions.FUNCTIONS.no_op()
@@ -230,7 +231,7 @@ class GymSc2Env(gym.Env):
         format and performing the action on the environment.
         """
         pysc2_action = self.action_fn(action)
-        print('pysc2 action in gym step: {}'.format(pysc2_action))
+        # print('pysc2 action in gym step: {}'.format(pysc2_action))
         observation = self.env.step([pysc2_action])
 
         return self.retrieve_step_info(observation)
