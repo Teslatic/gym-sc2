@@ -43,8 +43,52 @@ class GymSc2Env(gym.Env):
 
     def setup(self, sc2_env_file):
         """
-        An additional setup function that allows some custom modifications of the environment after
-        calling gym.make()
+        An additional setup function that allows some custom modifications of
+        the environment after calling gym.make()
+
+        From the official PYSC2 documentation:
+        You must pass a resolution that you want to play at. You can send either
+        feature layer resolution or rgb resolution or both. If you send both you
+        must also choose which to use as your action space. Regardless of which
+        you choose you must send both the screen and minimap resolutions.
+
+        For each of the 4 resolutions, either specify size or both width and
+        height. If you specify size then both width and height will take that
+        value.
+
+        Args:
+            _only_use_kwargs: Don't pass args, only kwargs.
+            map_name: Name of a SC2 map. Run bin/map_list to get the full list
+                      of known maps. Alternatively, pass a Map instance. Take a
+                      look at the docs in maps/README.md for more information
+                      on available maps.
+            players: A list of Agent and Bot instances that specify who will
+                     play.
+            agent_race: Deprecated. Use players instead.
+            bot_race: Deprecated. Use players instead.
+            difficulty: Deprecated. Use players instead.
+            screen_size_px: Deprecated. Use agent_interface_formats instead.
+            minimap_size_px: Deprecated. Use agent_interface_formats instead.
+            agent_interface_format: A sequence containing one
+                                    AgentInterfaceFormat per agent, matching
+                                    the order of agents specified in the
+                                    players list. Or a single
+                                    AgentInterfaceFormat to be used for all
+                                    agents.
+            visualize: Whether to pop up a window showing the camera and feature
+                       layers. This won't work without access to a window
+                       manager.
+            step_mul: How many game steps per agent step (action/observation).
+                      None means use the map default.
+            save_replay_episodes: Save a replay after this many episodes.
+                                  Default of 0 means don't save replays.
+            replay_dir: Directory to save replays. Required with
+                        save_replay_episodes.
+            game_steps_per_episode: Game steps per episode, independent of the
+                                    step_mul. 0 means no limit. None means use
+                                    the map default.
+            random_seed: Random number seed to use when initializing the game.
+            This lets you run repeatable games/tests.
         """
         self.env = sc2_env.SC2Env(
             map_name=self.map_name,
@@ -205,8 +249,10 @@ class GymSc2Env(gym.Env):
         Difference reward: If the marine hits a beacon reward=100, else it returns the covered distance.
         """
         reward_shaped = self.distance - self.distance_next
-        if self.distance == 0.0:
+
+        if observation[0].reward == 1:
             reward_shaped = 100
+
         return reward_shaped
 
     def distance_reward_fn(self, observation):
@@ -279,7 +325,6 @@ class GymSc2Env(gym.Env):
         marine_center = np.mean(self.xy_locs(screen_selected == 1), axis=0).round()
         beacon_center = np.mean(self.xy_locs(screen_player == 3), axis=0).round()
         if isinstance(marine_center, float):
-            print("instance check for marine center")
             marine_center = beacon_center
 
         distance = math.hypot(beacon_center[0] - marine_center[0],
