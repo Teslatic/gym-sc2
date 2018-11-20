@@ -1,6 +1,5 @@
 # gym imports
 import gym
-from gym import error, spaces, utils
 from gym.utils import seeding
 
 # pysc2 imports
@@ -11,7 +10,6 @@ from pysc2.lib import actions, features
 import numpy as np
 import math
 
-from env_specs import mv2beacon_specs
 
 class GymSc2Env(gym.Env):
     """
@@ -19,14 +17,14 @@ class GymSc2Env(gym.Env):
     """
     metadata = {'render.modes': ['human']}
 
-    ##################################################################################
+    ###########################################################################
     # Initialization, custom setup and resetting
-    ##################################################################################
+    ###########################################################################
 
-    def __init__(self, env_file = None):
+    def __init__(self, env_file=None):
         """
-        This constructor method defines constants for the Move2Beacon environment.
-        Do not forget to call self.setup(env_specs) after creating the environment with gym.make()
+        The constructordefines consts. for the Move2Beacon environment.
+        call self.setup(env_specs) after creating the env. with gym.make()
         """
         self.map_name = 'MoveToBeacon'
         self.players = [sc2_env.Agent(sc2_env.Race.terran)]
@@ -38,7 +36,8 @@ class GymSc2Env(gym.Env):
         self.agent_interface = self.setup_interface()
         self.FIRST_STEP = 0
         self.LAST_STEP = 2
-        self.MAX_DISTANCE = np.sqrt(self.screen_dim_x**2 + self.screen_dim_y**2)
+        self.MAX_DISTANCE = np.sqrt(self.screen_dim_x**2
+                                    + self.screen_dim_y**2)
         self.MIN_DISTANCE = 0
 
     def setup(self, sc2_env_file):
@@ -47,10 +46,11 @@ class GymSc2Env(gym.Env):
         the environment after calling gym.make()
 
         From the official PYSC2 documentation:
-        You must pass a resolution that you want to play at. You can send either
-        feature layer resolution or rgb resolution or both. If you send both you
-        must also choose which to use as your action space. Regardless of which
-        you choose you must send both the screen and minimap resolutions.
+        You must pass a resolution that you want to play at. You can send
+        either feature layer resolution or rgb resolution or both. If you send
+        both you must also choose which to use as your action space.
+        Regardless of which you choose you must send both the screen and
+        minimap resolutions.
 
         For each of the 4 resolutions, either specify size or both width and
         height. If you specify size then both width and height will take that
@@ -75,9 +75,9 @@ class GymSc2Env(gym.Env):
                                     players list. Or a single
                                     AgentInterfaceFormat to be used for all
                                     agents.
-            visualize: Whether to pop up a window showing the camera and feature
-                       layers. This won't work without access to a window
-                       manager.
+            visualize: Whether to pop up a window showing the camera and
+                        feature layers. This won't work without access to
+                        a window manager.
             step_mul: How many game steps per agent step (action/observation).
                       None means use the map default.
             save_replay_episodes: Save a replay after this many episodes.
@@ -94,9 +94,9 @@ class GymSc2Env(gym.Env):
             map_name=self.map_name,
             players=self.players,
             agent_interface_format=self.agent_interface,
-            step_mul = sc2_env_file['STEP_MUL'],
+            step_mul=sc2_env_file['STEP_MUL'],
             game_steps_per_episode=self.game_steps,
-            visualize = sc2_env_file['VISUALIZE'],
+            visualize=sc2_env_file['VISUALIZE'],
             # save_replay = sc2_env_file['SAVE_REPLAY'],
             # replay_dir = sc2_env_file['REPLAY_DIR'],
             )
@@ -111,35 +111,42 @@ class GymSc2Env(gym.Env):
         """
         Setting up agent interface for the environment.
         """
-        # TODO(vloeth): only screen dimension x is used because of problems in case of using a tuple like (84, 64)
+        # TODO(vloeth): only screen dimension x is used because
+        # of problems in case of using a tuple like (84, 64)
         agent_interface = features.AgentInterfaceFormat(
-                            feature_dimensions=features.Dimensions(screen=self.screen_dim_x, minimap=self.minimap_dim),
-                            use_feature_units=True)
+            feature_dimensions=features.Dimensions(screen=self.screen_dim_x,
+                                                   minimap=self.minimap_dim),
+            use_feature_units=True)
         return agent_interface
 
     def reset(self):
         """
-        This method resets the environment and returns the initial state of the reset environment.
+        This method resets the environment and returns the initial state
+        of the reset environment.
         """
         observation = self.env.reset()
 
-        self.beacon_center, self.marine_center, self.distance = self.calc_distance(observation)
+        self.beacon_center, self.marine_center, self.distance = \
+            self.calc_distance(observation)
 
         return self.retrieve_step_info(observation)
 
-    ##################################################################################
+    ###########################################################################
     # Define custom action function
-    ##################################################################################
+    ###########################################################################
 
     def define_action_fn(self, action_type):
         """
-        This method is used to define the action_fn which calculates the agent's action into a
-        PYSC2-compatible action.
+        This method is used to define the action_fn which calculates the
+        agent's action into a PYSC2-compatible action.
 
         The following action functions are available:
-        1. Compass actions: The agent can select the compass actions: 'left', 'up', 'right', 'down'
-        2. Grid actions: The agent can select the index of a grid point: eg. 1,2,3 ... self.factor*self.factor
-        3. Original actions: The agent can select the actions in the standard PYSC2 format: e.g. actions.FUNCTIONS.no_op()
+        1. Compass actions: The agent can select the compass actions:
+            'left', 'up', 'right', 'down'
+        2. Grid actions: The agent can select the index of a grid point:
+            eg. 1,2,3 ... self.factor*self.factor
+        3. Original actions: The agent can select the actions in
+            the standard PYSC2 format: e.g. actions.FUNCTIONS.no_op()
         """
         if action_type == 'compass':
             return self.compass_action_fn
@@ -154,24 +161,35 @@ class GymSc2Env(gym.Env):
     def compass_action_fn(self, action):
         """
         Input: 'left', 'up', 'right', 'down'
-        Output: an PYSC2 compatible action that moves the agent in the selected direction.
+        Output: an PYSC2 compatible action that moves the agent in the selected
+        direction.
         """
         # print('action passed to compass action fn: {}'.format(action))
 
         if self.can_do(actions.FUNCTIONS.Move_screen.id):
             if action is 'left':
                 if not (self.marine_center[0] <= 0):
-                    return actions.FUNCTIONS.Move_screen("now", self.marine_center + (-self.step_mul, 0))
+                    return actions.FUNCTIONS.Move_screen("now",
+                                                         self.marine_center +
+                                                         (-self.step_mul, 0))
             if action is 'up':
                 if not (self.marine_center[1] <= 0):
-                    return actions.FUNCTIONS.Move_screen("now", self.marine_center + (0, -self.step_mul))
+                    return actions.FUNCTIONS.Move_screen("now",
+                                                         self.marine_center +
+                                                         (0, -self.step_mul))
             if action is 'right':
                 if not (self.marine_center[0] >= 83):
-                    return actions.FUNCTIONS.Move_screen("now", self.marine_center + (self.step_mul, 0))
+                    return actions.FUNCTIONS.Move_screen("now",
+                                                         self.marine_center +
+                                                         (self.step_mul, 0))
             if action is 'down':
                 if not (self.marine_center[1] >= 63):
-                    return actions.FUNCTIONS.Move_screen("now", self.marine_center + (0, self.step_mul))
-        elif action == 'select_army' and self.can_do(actions.FUNCTIONS.select_army.id):
+                    return actions.FUNCTIONS.Move_screen("now",
+                                                         self.marine_center +
+                                                         (0, self.step_mul))
+
+        elif action == 'select_army' and self.can_do(
+                                            actions.FUNCTIONS.select_army.id):
             return actions.FUNCTIONS.select_army("select")
         else:
             return actions.FUNCTIONS.no_op()
@@ -179,12 +197,14 @@ class GymSc2Env(gym.Env):
     def grid_action_fn(self, action):
         """
         Input: 1, 2, ... self.factor*self.factor
-        Output: an PYSC2 compatible action that moves the agent to the selected grid point.
-        For further information refer to the methods discretize_xy_grid
+        Output: an PYSC2 compatible action that moves the agent to the
+        selected grid point. For further information refer to the methods
+        discretize_xy_grid
         """
         if self.can_do(actions.FUNCTIONS.Move_screen.id):
             action = actions.FUNCTIONS.Move_screen("now",
-                                        (self.xy_space[action][0], self.xy_space[action][1]))
+                                                   (self.xy_space[action][0],
+                                                    self.xy_space[action][1]))
         elif self.can_do(actions.FUNCTIONS.select_army.id):
             action = actions.FUNCTIONS.select_army("select")
         else:
@@ -193,11 +213,13 @@ class GymSc2Env(gym.Env):
         return action
 
     def discretize_xy_grid(self):
-        """ "discretizing" action coordinates in order to keep action space small """
-        x_space = np.linspace(0, 83, self.grid_factor, dtype = int)
-        y_space = np.linspace(0, 63, self.grid_factor, dtype = int)
+        """
+        discretize action coordinates in order to keep action space small
+        """
+        x_space = np.linspace(0, 83, self.grid_factor, dtype=int)
+        y_space = np.linspace(0, 63, self.grid_factor, dtype=int)
         xy_space = np.transpose([np.tile(x_space, len(y_space)),
-                                   np.repeat(y_space, len(x_space))])
+                                 np.repeat(y_space, len(x_space))])
 
         return xy_space
 
@@ -215,19 +237,22 @@ class GymSc2Env(gym.Env):
 
         return list(zip(x, y))
 
-
-    ##################################################################################
+    ###########################################################################
     # Define reward function
-    ##################################################################################
+    ###########################################################################
 
     def define_reward_fn(self, reward_type):
         """
-        This method is used to define the reward_fn which calculates the agent's reward.
+        This method is used to define the reward_fn which calculates the
+        agent's reward.
 
         The following reward functions are available:
         1. Sparse reward: If the marine hits a beacon reward=1, 0 else
-        2. Diff reward: If the marine hits a beacon reward=100, else it returns the covered distance.
-        3. Distance reward: If the marine hits a beacon reward=100, else it returns the absolute distance normalized on the max possible distance.
+        2. Diff reward: If the marine hits a beacon reward=100,
+            else it returns the covered distance.
+        3. Distance reward: If the marine hits a beacon reward=100,
+            else it returns the absolute distance normalized on the
+            max possible distance.
         """
         if reward_type == 'sparse':
             return self.sparse_reward_fn
@@ -246,7 +271,8 @@ class GymSc2Env(gym.Env):
 
     def diff_reward_fn(self, observation):
         """
-        Difference reward: If the marine hits a beacon reward=100, else it returns the covered distance.
+        Difference reward: If the marine hits a beacon reward=100,
+        else it returns the covered distance.
         """
         reward_shaped = self.distance - self.distance_next
 
@@ -257,24 +283,26 @@ class GymSc2Env(gym.Env):
 
     def distance_reward_fn(self, observation):
         """
-        Distance reward: If the marine hits a beacon reward=100, else it returns the absolute distance normalized on the max possible distance.
+        Distance reward: If the marine hits a beacon reward=100,
+        else it returns the absolute distance normalized on the max possible
+        distance.
         """
-        scaling = lambda x : (x - self.MIN_DISTANCE)/(self.MAX_DISTANCE  - self.MIN_DISTANCE)
-        distance_reward = -1 * scaling(self.distance).round(4)
+        distance_reward = -1 * (self.distance - self.MIN_DISTANCE) \
+            / (self.MAX_DISTANCE - self.MIN_DISTANCE).round(4)
 
         if observation[0].reward == 1:
             return 10
         else:
             return distance_reward
 
-    ##################################################################################
+    ###########################################################################
     # Performing a step
-    ##################################################################################
+    ###########################################################################
 
     def step(self, action):
         """
-        The step function of the agent is translating the action to a PYSC2-compatible
-        format and performing the action on the environment.
+        This function translates the action to a PYSC2-compatible format and
+        performing the action on the environment.
         """
         pysc2_action = self.action_fn(action)
         # print('pysc2 action in gym step: {}'.format(pysc2_action))
@@ -284,16 +312,24 @@ class GymSc2Env(gym.Env):
 
     def retrieve_step_info(self, observation):
         """
-        Extracts state and reward information from the pysc2 player relative layer
-        and converts it into gym-like observation tuple.
+        Extracts state and reward information from the pysc2 player relative
+        layer and converts it into gym-like observation tuple.
         """
         state = observation[0].observation.feature_screen.player_relative
         state2 = observation[0].observation.feature_screen.selected
-        beacon_next, marine_next, self.distance_next = self.calc_distance(observation)
+        beacon_next, marine_next, self.distance_next = \
+            self.calc_distance(observation)
         reward = self.reward_fn(observation)
-        last = True if observation[0].step_type.value == self.LAST_STEP else False
+        if observation[0].step_type.value == self.LAST_STEP:
+            last = True
+        else:
+            last = False
         # check if needed
-        first = True if observation[0].step_type.value == self.FIRST_STEP else False
+
+        if observation[0].step_type.value == self.FIRST_STEP:
+            first = True
+        else:
+            first = False
 
         done = last
         info = None
@@ -319,11 +355,12 @@ class GymSc2Env(gym.Env):
         Using feature_screen.selected since marine vanishes behind beacon when
         using feature_screen.player_relative
         """
-        screen_player = observation[0].observation.feature_screen.player_relative
-        screen_selected = observation[0].observation.feature_screen.selected
+        actual_obs = observation[0]
+        scrn_player = actual_obs.observation.feature_screen.player_relative
+        scrn_select = actual_obs.observation.feature_screen.selected
 
-        marine_center = np.mean(self.xy_locs(screen_selected == 1), axis=0).round()
-        beacon_center = np.mean(self.xy_locs(screen_player == 3), axis=0).round()
+        marine_center = np.mean(self.xy_locs(scrn_select == 1), axis=0).round()
+        beacon_center = np.mean(self.xy_locs(scrn_player == 3), axis=0).round()
         if isinstance(marine_center, float):
             marine_center = beacon_center
 
@@ -332,10 +369,9 @@ class GymSc2Env(gym.Env):
 
         return beacon_center, marine_center, distance
 
-
-    ##################################################################################
+    ###########################################################################
     # Gym compatible methods
-    ##################################################################################
+    ###########################################################################
 
     def render(self, mode='human', close=False):
         """
