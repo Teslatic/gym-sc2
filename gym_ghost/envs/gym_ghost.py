@@ -26,6 +26,7 @@ class GymSc2Env(gym.Env):
         The constructordefines consts. for the Move2Beacon environment.
         call self.setup(env_specs) after creating the env. with gym.make()
         """
+        self.cnt_episodes = 0
         self.map_name = 'MoveToBeacon'
         self.players = [sc2_env.Agent(sc2_env.Race.terran)]
         self.screen_dim_x = 84
@@ -40,7 +41,7 @@ class GymSc2Env(gym.Env):
                                     + self.screen_dim_y**2)
         self.MIN_DISTANCE = 0
 
-    def setup(self, sc2_env_file):
+    def setup(self, sc2_env_file, mode="learning"):
         """
         An additional setup function that allows some custom modifications of
         the environment after calling gym.make()
@@ -94,15 +95,20 @@ class GymSc2Env(gym.Env):
             map_name=self.map_name,
             players=self.players,
             agent_interface_format=self.agent_interface,
-            step_mul=sc2_env_file['STEP_MUL'],
+            step_mul=int(sc2_env_file['STEP_MUL']),
             game_steps_per_episode=self.game_steps,
             visualize=sc2_env_file['VISUALIZE'],
             # save_replay = sc2_env_file['SAVE_REPLAY'],
             # replay_dir = sc2_env_file['REPLAY_DIR'],
             )
 
-        self.step_mul = sc2_env_file['STEP_MUL']
-        self.grid_factor = sc2_env_file['GRID_FACTOR']
+        if mode == 'learning':
+            self.episodes = int(sc2_env_file['EPISODES'])
+        else:
+            self.episodes = int(sc2_env_file['TEST_EPISODES'])
+
+        self.step_mul = int(sc2_env_file['STEP_MUL'])
+        self.grid_factor = int(sc2_env_file['GRID_FACTOR'])
         self.action_fn = self.define_action_fn(sc2_env_file['ACTION_TYPE'])
         self.reward_fn = self.define_reward_fn(sc2_env_file['REWARD_TYPE'])
         return self.reset()
@@ -129,6 +135,12 @@ class GymSc2Env(gym.Env):
         self.beacon_center, self.marine_center, self.distance = \
             self.calc_distance(observation)
 
+        self.cnt_episodes += 1
+
+        if self.cnt_episodes > self.episodes:
+            print("Training/Testing finished.")
+            self.env.close()
+            
         return self.retrieve_step_info(observation)
 
     ###########################################################################
