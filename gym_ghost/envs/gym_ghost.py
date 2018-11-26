@@ -26,6 +26,7 @@ class GymSc2Env(gym.Env):
         The constructordefines consts. for the Move2Beacon environment.
         call self.setup(env_specs) after creating the env. with gym.make()
         """
+        self.finished = False
         self.cnt_episodes = 0
         self.map_name = 'MoveToBeacon'
         self.players = [sc2_env.Agent(sc2_env.Race.terran)]
@@ -91,6 +92,8 @@ class GymSc2Env(gym.Env):
             random_seed: Random number seed to use when initializing the game.
             This lets you run repeatable games/tests.
         """
+        print(sc2_env_file['VISUALIZE'])
+        # exit()
         self.env = sc2_env.SC2Env(
             map_name=self.map_name,
             players=self.players,
@@ -108,7 +111,10 @@ class GymSc2Env(gym.Env):
             self.episodes = int(sc2_env_file['TEST_EPISODES'])
 
         self.step_mul = int(sc2_env_file['STEP_MUL'])
-        self.grid_factor = int(sc2_env_file['GRID_FACTOR'])
+
+        self.grid_dim_x = int(sc2_env_file['GRID_DIM_X'])
+        self.grid_dim_y = int(sc2_env_file['GRID_DIM_Y'])
+
         self.action_fn = self.define_action_fn(sc2_env_file['ACTION_TYPE'])
         self.reward_fn = self.define_reward_fn(sc2_env_file['REWARD_TYPE'])
         return self.reset()
@@ -130,17 +136,17 @@ class GymSc2Env(gym.Env):
         This method resets the environment and returns the initial state
         of the reset environment.
         """
+        self.cnt_episodes += 1
+        if self.cnt_episodes > self.episodes:
+            print("Training/Testing finished.")
+            self.env.close()
+            self.finished = True
+            exit()
+        print("About to reset")
         observation = self.env.reset()
 
         self.beacon_center, self.marine_center, self.distance = \
             self.calc_distance(observation)
-
-        self.cnt_episodes += 1
-
-        if self.cnt_episodes > self.episodes:
-            print("Training/Testing finished.")
-            self.env.close()
-            
         return self.retrieve_step_info(observation)
 
     ###########################################################################
@@ -228,8 +234,8 @@ class GymSc2Env(gym.Env):
         """
         discretize action coordinates in order to keep action space small
         """
-        x_space = np.linspace(0, 83, self.grid_factor, dtype=int)
-        y_space = np.linspace(0, 63, self.grid_factor, dtype=int)
+        x_space = np.linspace(0, 83, self.grid_dim_x, dtype=int)
+        y_space = np.linspace(0, 63, self.grid_dim_y, dtype=int)
         xy_space = np.transpose([np.tile(x_space, len(y_space)),
                                  np.repeat(y_space, len(x_space))])
 
