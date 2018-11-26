@@ -34,6 +34,7 @@ class GymSc2Env(gym.Env):
         self.screen_dim_y = 64
         self.minimap_dim = 64
         self.game_steps = 0
+
         # TODO: initialize observation space and action space
         self.agent_interface = self.setup_interface()
         self.FIRST_STEP = 0
@@ -92,15 +93,14 @@ class GymSc2Env(gym.Env):
             random_seed: Random number seed to use when initializing the game.
             This lets you run repeatable games/tests.
         """
-        print(sc2_env_file['VISUALIZE'])
-        # exit()
+        visualize = True if sc2_env_file['VISUALIZE'] == 'True' else False
         self.env = sc2_env.SC2Env(
             map_name=self.map_name,
             players=self.players,
             agent_interface_format=self.agent_interface,
             step_mul=int(sc2_env_file['STEP_MUL']),
             game_steps_per_episode=self.game_steps,
-            visualize=sc2_env_file['VISUALIZE'],
+            visualize=visualize,
             # save_replay = sc2_env_file['SAVE_REPLAY'],
             # replay_dir = sc2_env_file['REPLAY_DIR'],
             )
