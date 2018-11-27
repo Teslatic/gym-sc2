@@ -1,5 +1,5 @@
 # gym-sc2
-Our gym starcraft 2 environment/wrapper
+Our gym starcraft 2 environment/wrapper for the pysc2 library
 
 Setup:
 1. clone repo to desired location
