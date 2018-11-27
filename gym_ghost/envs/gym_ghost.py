@@ -337,7 +337,7 @@ class GymSc2Env(gym.Env):
         state2 = observation[0].observation.feature_screen.selected
         beacon_next, marine_next, self.distance_next = \
             self.calc_distance(observation)
-        reward = self.reward_fn(observation)
+        reward = np.float32(self.reward_fn(observation))
         pysc2_score = observation[0].observation.score_cumulative[0]
         if observation[0].step_type.value == self.LAST_STEP:
             last = True
