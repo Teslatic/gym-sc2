@@ -93,7 +93,12 @@ class GymSc2Env(gym.Env):
             random_seed: Random number seed to use when initializing the game.
             This lets you run repeatable games/tests.
         """
-        visualize = True if sc2_env_file['VISUALIZE'] == 'True' else False
+
+        if mode == 'testing':
+            visualize = True if sc2_env_file['TEST_VISUALIZE'] == 'True' else False
+        else:
+            visualize = True if sc2_env_file['VISUALIZE'] == True else False
+
         self.env = sc2_env.SC2Env(
             map_name=self.map_name,
             players=self.players,
