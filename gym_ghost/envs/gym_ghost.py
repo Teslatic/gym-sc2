@@ -338,12 +338,20 @@ class GymSc2Env(gym.Env):
         Extracts state and reward information from the pysc2 player relative
         layer and converts it into gym-like observation tuple.
         """
-        state = observation[0].observation.feature_screen.player_relative
-        state2 = observation[0].observation.feature_screen.selected
+        state_pl_rel = observation[0].observation.feature_screen.player_relative
+        state_selected = observation[0].observation.feature_screen.selected
+        state_density = observation[0].observation.feature_screen.unit_density
+
+        state = state_selected + state_density
+
+
+
+
         beacon_next, marine_next, self.distance_next = \
             self.calc_distance(observation)
         reward = np.float32(self.reward_fn(observation))
         pysc2_score = observation[0].observation.score_cumulative[0]
+        pysc2_reward = observation[0].reward
         if observation[0].step_type.value == self.LAST_STEP:
             last = True
         else:
@@ -364,13 +372,13 @@ class GymSc2Env(gym.Env):
         self.beacon_center = beacon_next
 
         obs = [state,
-               state2,
                first,
                last,
                self.distance,
                self.marine_center,
                self.beacon_center,
-               pysc2_score]
+               pysc2_score,
+               pysc2_reward]
 
         return obs, reward, done, info
 
@@ -383,11 +391,28 @@ class GymSc2Env(gym.Env):
         actual_obs = observation[0]
         scrn_player = actual_obs.observation.feature_screen.player_relative
         scrn_select = actual_obs.observation.feature_screen.selected
+        scrn_density = actual_obs.observation.feature_screen.unit_density
 
         marine_center = np.mean(self.xy_locs(scrn_select == 1), axis=0).round()
         beacon_center = np.mean(self.xy_locs(scrn_player == 3), axis=0).round()
+
+        temp = 1
         if isinstance(marine_center, float):
-            marine_center = beacon_center
+            temp = 2
+            marine_center = np.mean(self.xy_locs(scrn_density == 2), axis=0).round()
+            if isinstance(marine_center, float):
+                temp = 3
+                # print(scrn_select)
+                # print(scrn_density)
+                marine_center = beacon_center
+
+
+        # if temp == 1:
+        #     print(scrn_select)
+        # if temp == 2:
+        #     print(scrn_density)
+        # if temp == 3:
+        #     print(scrn_player)
 
         distance = math.hypot(beacon_center[0] - marine_center[0],
                               beacon_center[1] - marine_center[1])
