@@ -338,13 +338,45 @@ class GymSc2Env(gym.Env):
         Extracts state and reward information from the pysc2 player relative
         layer and converts it into gym-like observation tuple.
         """
-        state_pl_rel = observation[0].observation.feature_screen.player_relative
-        state_selected = observation[0].observation.feature_screen.selected
-        state_density = observation[0].observation.feature_screen.unit_density
+        state_height        = np.array(observation[0].observation.feature_screen.height_map)
+        state_visibility    = np.array(observation[0].observation.feature_screen.visibility_map)
+        state_creep         = np.array(observation[0].observation.feature_screen.creep)
+        state_power         = np.array(observation[0].observation.feature_screen.power)
+        state_pl_id         = np.array(observation[0].observation.feature_screen.player_id)
+        state_pl_rel        = np.array(observation[0].observation.feature_screen.player_relative)
+        state_unit_type     = np.array(observation[0].observation.feature_screen.unit_type)
+        state_selected      = np.array(observation[0].observation.feature_screen.selected)
+        state_unit_hp       = np.array(observation[0].observation.feature_screen.unit_hit_points)
+        state_unit_hp_ratio = np.array(observation[0].observation.feature_screen.unit_hit_points_ratio)
+        state_unit_en       = np.array(observation[0].observation.feature_screen.unit_energy)
+        state_unit_en_ratio = np.array(observation[0].observation.feature_screen.unit_energy_ratio)
+        state_unit_sh       = np.array(observation[0].observation.feature_screen.unit_shields)
+        state_unit_sh_ratio = np.array(observation[0].observation.feature_screen.unit_shields_ratio)
+        state_density       = np.array(observation[0].observation.feature_screen.unit_density)
+        state_density_aa    = np.array(observation[0].observation.feature_screen.unit_density_aa)
+        state_effects       = np.array(observation[0].observation.feature_screen.effects)
 
-        state = state_selected + state_density
+        state = np.stack([np.array(state_selected + state_density),
+                        state_height,
+                        state_visibility,
+                        state_creep,
+                        state_power,
+                        state_pl_id,
+                        state_pl_rel,
+                        state_unit_type,
+                        state_selected,
+                        state_unit_hp,
+                        state_unit_hp_ratio,
+                        state_unit_en,
+                        state_unit_en_ratio,
+                        state_unit_sh,
+                        state_unit_sh_ratio,
+                        state_density,
+                        state_density_aa])
 
 
+
+        # state = state_selected + state_density
 
 
         beacon_next, marine_next, self.distance_next = \
