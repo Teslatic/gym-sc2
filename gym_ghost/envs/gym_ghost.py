@@ -9,6 +9,7 @@ from pysc2.lib import actions, features
 # python imports
 import numpy as np
 import math
+import time
 
 
 class GymSc2Env(gym.Env):
@@ -93,7 +94,7 @@ class GymSc2Env(gym.Env):
             random_seed: Random number seed to use when initializing the game.
             This lets you run repeatable games/tests.
         """
-
+        # TODO NOT: Inconsistent check for Trur (Bool snd String)
         if mode == 'testing':
             visualize = True if sc2_env_file['TEST_VISUALIZE'] == 'True' else False
         else:
@@ -313,6 +314,12 @@ class GymSc2Env(gym.Env):
         distance_reward = -1 * (self.distance - self.MIN_DISTANCE) \
             / (self.MAX_DISTANCE - self.MIN_DISTANCE).round(4)
 
+
+        beacon_center, marine, distance = self.calc_distance(observation)
+
+
+
+
         if observation[0].reward == 1:
             return 10
         else:
@@ -338,50 +345,50 @@ class GymSc2Env(gym.Env):
         Extracts state and reward information from the pysc2 player relative
         layer and converts it into gym-like observation tuple.
         """
-        state_height        = np.array(observation[0].observation.feature_screen.height_map)
-        state_visibility    = np.array(observation[0].observation.feature_screen.visibility_map)
-        state_creep         = np.array(observation[0].observation.feature_screen.creep)
-        state_power         = np.array(observation[0].observation.feature_screen.power)
-        state_pl_id         = np.array(observation[0].observation.feature_screen.player_id)
+        # state_height        = np.array(observation[0].observation.feature_screen.height_map)
+        # state_visibility    = np.array(observation[0].observation.feature_screen.visibility_map)
+        # state_creep         = np.array(observation[0].observation.feature_screen.creep)
+        # state_power         = np.array(observation[0].observation.feature_screen.power)
+        # state_pl_id         = np.array(observation[0].observation.feature_screen.player_id)
         state_pl_rel        = np.array(observation[0].observation.feature_screen.player_relative)
-        state_unit_type     = np.array(observation[0].observation.feature_screen.unit_type)
+        # state_unit_type     = np.array(observation[0].observation.feature_screen.unit_type)
         state_selected      = np.array(observation[0].observation.feature_screen.selected)
-        state_unit_hp       = np.array(observation[0].observation.feature_screen.unit_hit_points)
-        state_unit_hp_ratio = np.array(observation[0].observation.feature_screen.unit_hit_points_ratio)
-        state_unit_en       = np.array(observation[0].observation.feature_screen.unit_energy)
-        state_unit_en_ratio = np.array(observation[0].observation.feature_screen.unit_energy_ratio)
-        state_unit_sh       = np.array(observation[0].observation.feature_screen.unit_shields)
-        state_unit_sh_ratio = np.array(observation[0].observation.feature_screen.unit_shields_ratio)
+        # state_unit_hp       = np.array(observation[0].observation.feature_screen.unit_hit_points)
+        # state_unit_hp_ratio = np.array(observation[0].observation.feature_screen.unit_hit_points_ratio)
+        # state_unit_en       = np.array(observation[0].observation.feature_screen.unit_energy)
+        # state_unit_en_ratio = np.array(observation[0].observation.feature_screen.unit_energy_ratio)
+        # state_unit_sh       = np.array(observation[0].observation.feature_screen.unit_shields)
+        # state_unit_sh_ratio = np.array(observation[0].observation.feature_screen.unit_shields_ratio)
         state_density       = np.array(observation[0].observation.feature_screen.unit_density)
-        state_density_aa    = np.array(observation[0].observation.feature_screen.unit_density_aa)
-        state_effects       = np.array(observation[0].observation.feature_screen.effects)
+        # state_density_aa    = np.array(observation[0].observation.feature_screen.unit_density_aa)
+        # state_effects       = np.array(observation[0].observation.feature_screen.effects)
 
-        state = np.stack([np.array(state_selected + state_density),
-                        state_height,
-                        state_visibility,
-                        state_creep,
-                        state_power,
-                        state_pl_id,
-                        state_pl_rel,
-                        state_unit_type,
-                        state_selected,
-                        state_unit_hp,
-                        state_unit_hp_ratio,
-                        state_unit_en,
-                        state_unit_en_ratio,
-                        state_unit_sh,
-                        state_unit_sh_ratio,
-                        state_density,
-                        state_density_aa])
-
-
-
-        # state = state_selected + state_density
+        # state = np.stack([np.array(state_selected + state_density),
+        #                 state_height,
+        #                 state_visibility,
+        #                 state_creep,
+        #                 state_power,
+        #                 state_pl_id,
+        #                 state_pl_rel,
+        #                 state_unit_type,
+        #                 state_selected,
+        #                 state_unit_hp,
+        #                 state_unit_hp_ratio,
+        #                 state_unit_en,
+        #                 state_unit_en_ratio,
+        #                 state_unit_sh,
+        #                 state_unit_sh_ratio,
+        #                 state_density,
+        #                 state_density_aa])
 
 
+
+        state = [np.array(state_selected + state_density)]
+        
         beacon_next, marine_next, self.distance_next = \
             self.calc_distance(observation)
         reward = np.float32(self.reward_fn(observation))
+        # self.dummy_reward = reward
         pysc2_score = observation[0].observation.score_cumulative[0]
         pysc2_reward = observation[0].reward
         if observation[0].step_type.value == self.LAST_STEP:
@@ -425,27 +432,27 @@ class GymSc2Env(gym.Env):
         scrn_select = actual_obs.observation.feature_screen.selected
         scrn_density = actual_obs.observation.feature_screen.unit_density
 
-        marine_center = np.mean(self.xy_locs(scrn_select == 1), axis=0).round()
-        beacon_center = np.mean(self.xy_locs(scrn_player == 3), axis=0).round()
+        state_added = scrn_select + scrn_density
 
-        temp = 1
-        if isinstance(marine_center, float):
-            temp = 2
-            marine_center = np.mean(self.xy_locs(scrn_density == 2), axis=0).round()
+        marine_center = np.mean(self.xy_locs(scrn_player == 1), axis=0).round()
+
+        # first step
+        if np.sum(scrn_select) == 0:
+            marine_center = np.mean(self.xy_locs(scrn_player == 1), axis=0).round()
+            # marine behind beacon
             if isinstance(marine_center, float):
-                temp = 3
-                # print(scrn_select)
-                # print(scrn_density)
-                marine_center = beacon_center
+                marine_center = np.mean(self.xy_locs(state_added == 2), axis=0).round()
+        else:
+            # normal navigation
+            marine_center = np.mean(self.xy_locs(state_added == 2), axis=0).round()
+            if isinstance(marine_center, float):
+                marine_center = np.mean(self.xy_locs(state_added == 3), axis=0).round()
 
-
-        # if temp == 1:
-        #     print(scrn_select)
-        # if temp == 2:
-        #     print(scrn_density)
-        # if temp == 3:
-        #     print(scrn_player)
-
+        beacon_center = np.mean(self.xy_locs(scrn_player == 3), axis=0).round()
+        #
+        # print(state_added)
+        # print("---- Marine {} | {} Beacon ----".format(marine_center, beacon_center))
+        # time.sleep(0.2)
         distance = math.hypot(beacon_center[0] - marine_center[0],
                               beacon_center[1] - marine_center[1])
 
