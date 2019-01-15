@@ -1,5 +1,5 @@
 from setuptools import setup
 
-setup(name='gym-sc2',
+setup(name='gym-sc2-v0',
       version='0.0.2',
       install_requires=['gym'])

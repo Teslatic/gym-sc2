@@ -11,40 +11,38 @@ import numpy as np
 import math
 import time
 
-
-class GymSc2Env(gym.Env):
+class Base(gym.Env):
     """
     A wrapper class that uses the PYSC2 environment like a gym environment.
+    It is the basic class from which all specific minigame environments should
+    inherit.
     """
-    metadata = {'render.modes': ['human']}
+    # metadata = {'render.modes': ['human']}
 
     ###########################################################################
     # Initialization, custom setup and resetting
     ###########################################################################
 
-    def __init__(self, env_file=None):
+    def __init__(self):
         """
         The constructordefines consts. for the Move2Beacon environment.
         call self.setup(env_specs) after creating the env. with gym.make()
         """
         self.finished = False
         self.cnt_episodes = 0
-        self.map_name = 'MoveToBeacon'
         self.players = [sc2_env.Agent(sc2_env.Race.terran)]
         self.screen_dim_x = 84
         self.screen_dim_y = 64
         self.minimap_dim = 64
         self.game_steps = 0
 
+
         # TODO: initialize observation space and action space
         self.agent_interface = self.setup_interface()
         self.FIRST_STEP = 0
         self.LAST_STEP = 2
-        self.MAX_DISTANCE = np.sqrt(self.screen_dim_x**2
-                                    + self.screen_dim_y**2)
-        self.MIN_DISTANCE = 0
 
-    def setup(self, sc2_env_file, mode="learning"):
+    def setup(self, env_specs, mode="learning"):
         """
         An additional setup function that allows some custom modifications of
         the environment after calling gym.make()
@@ -95,34 +93,34 @@ class GymSc2Env(gym.Env):
             This lets you run repeatable games/tests.
         """
         # TODO NOT: Inconsistent check for Trur (Bool snd String)
-        if mode == 'testing':
-            visualize = True if sc2_env_file['TEST_VISUALIZE'] == 'True' else False
+
+        # environment file cant be passed to gym make, hence the extra setup
+        # function.
+        self.step_mul = int(env_specs['STEP_MUL'])
+
+        self.mode = env_specs['MODE']
+
+        if self.mode == 'testing':
+            self.visualize = True if env_specs['TEST_VISUALIZE'] == 'True' else False
         else:
-            visualize = True if sc2_env_file['VISUALIZE'] == True else False
+            self.visualize = True if env_specs['VISUALIZE'] == True else False
+
+        if self.mode == 'learning':
+            self.episodes = int(env_specs['EPISODES'])
+        else:
+            self.episodes = int(env_specs['TEST_EPISODES'])
 
         self.env = sc2_env.SC2Env(
             map_name=self.map_name,
             players=self.players,
             agent_interface_format=self.agent_interface,
-            step_mul=int(sc2_env_file['STEP_MUL']),
+            step_mul=self.step_mul,
             game_steps_per_episode=self.game_steps,
-            visualize=visualize,
+            visualize=self.visualize,
             # save_replay = sc2_env_file['SAVE_REPLAY'],
             # replay_dir = sc2_env_file['REPLAY_DIR'],
             )
 
-        if mode == 'learning':
-            self.episodes = int(sc2_env_file['EPISODES'])
-        else:
-            self.episodes = int(sc2_env_file['TEST_EPISODES'])
-
-        self.step_mul = int(sc2_env_file['STEP_MUL'])
-
-        self.grid_dim_x = int(sc2_env_file['GRID_DIM_X'])
-        self.grid_dim_y = int(sc2_env_file['GRID_DIM_Y'])
-
-        self.action_fn = self.define_action_fn(sc2_env_file['ACTION_TYPE'])
-        self.reward_fn = self.define_reward_fn(sc2_env_file['REWARD_TYPE'])
         return self.reset()
 
     def setup_interface(self):
@@ -137,10 +135,9 @@ class GymSc2Env(gym.Env):
             use_feature_units=True)
         return agent_interface
 
-    def reset(self):
+    def environment_reset(self):
         """
-        This method resets the environment and returns the initial state
-        of the reset environment.
+        Actual environment reset method.
         """
         self.cnt_episodes += 1
         if self.cnt_episodes > self.episodes:
@@ -149,11 +146,34 @@ class GymSc2Env(gym.Env):
             self.finished = True
             exit()
         print("About to reset")
-        observation = self.env.reset()
+        return self.env.reset()
 
-        self.beacon_center, self.marine_center, self.distance = \
-            self.calc_distance(observation)
+    def reset(self):
+        """
+        This method calls the environment reset method and returns initial state
+        of the reset environment.
+        """
+        observation = self.environment_reset()
         return self.retrieve_step_info(observation)
+
+    ###########################################################################
+    # Define custom action function
+    ###########################################################################
+
+    def define_action_fn(self, action_type):
+        """
+        This method is used to define the action_fn which calculates the
+        agent's action into a PYSC2-compatible action.
+        """
+        if action_type == 'compass':
+            return self.compass_action_fn
+        elif action_type == 'grid':
+            self.xy_space = self.discretize_xy_grid()
+            return self.grid_action_fn
+        elif action_type == 'original':
+            return self.original_action_fn
+        else:
+            raise("Specifiy action function!")
 
     ###########################################################################
     # Define custom action function
@@ -218,6 +238,15 @@ class GymSc2Env(gym.Env):
         else:
             return actions.FUNCTIONS.no_op()
 
+
+    def original_action_fn(self, action):
+        """
+        Input: PYSC2 action index
+        Output: A PYSC2 compatible.
+        """
+
+        raise NotImplementedError
+
     def grid_action_fn(self, action):
         """
         Input: 1, 2, ... self.factor*self.factor
@@ -261,69 +290,7 @@ class GymSc2Env(gym.Env):
 
         return list(zip(x, y))
 
-    ###########################################################################
-    # Define reward function
-    ###########################################################################
 
-    def define_reward_fn(self, reward_type):
-        """
-        This method is used to define the reward_fn which calculates the
-        agent's reward.
-
-        The following reward functions are available:
-        1. Sparse reward: If the marine hits a beacon reward=1, 0 else
-        2. Diff reward: If the marine hits a beacon reward=100,
-            else it returns the covered distance.
-        3. Distance reward: If the marine hits a beacon reward=100,
-            else it returns the absolute distance normalized on the
-            max possible distance.
-        """
-        if reward_type == 'sparse':
-            return self.sparse_reward_fn
-        elif reward_type == 'diff':
-            return self.diff_reward_fn
-        elif reward_type == 'distance':
-            return self.distance_reward_fn
-        else:
-            raise("Specify reward function!")
-
-    def sparse_reward_fn(self, observation):
-        """
-        Sparse reward: If the marine hits a beacon reward=1, 0 else
-        """
-        return observation[0].reward
-
-    def diff_reward_fn(self, observation):
-        """
-        Difference reward: If the marine hits a beacon reward=100,
-        else it returns the covered distance.
-        """
-        reward_shaped = self.distance - self.distance_next
-
-        if observation[0].reward == 1:
-            reward_shaped = 100
-
-        return reward_shaped
-
-    def distance_reward_fn(self, observation):
-        """
-        Distance reward: If the marine hits a beacon reward=100,
-        else it returns the absolute distance normalized on the max possible
-        distance.
-        """
-        distance_reward = -1 * (self.distance - self.MIN_DISTANCE) \
-            / (self.MAX_DISTANCE - self.MIN_DISTANCE).round(4)
-
-
-        beacon_center, marine, distance = self.calc_distance(observation)
-
-
-
-
-        if observation[0].reward == 1:
-            return 10
-        else:
-            return distance_reward
 
     ###########################################################################
     # Performing a step
@@ -384,18 +351,15 @@ class GymSc2Env(gym.Env):
 
 
         state = [np.array(state_selected + state_density)]
-        
-        beacon_next, marine_next, self.distance_next = \
-            self.calc_distance(observation)
         reward = np.float32(self.reward_fn(observation))
-        # self.dummy_reward = reward
+
         pysc2_score = observation[0].observation.score_cumulative[0]
         pysc2_reward = observation[0].reward
+
         if observation[0].step_type.value == self.LAST_STEP:
             last = True
         else:
             last = False
-        # check if needed
 
         if observation[0].step_type.value == self.FIRST_STEP:
             first = True
@@ -406,57 +370,13 @@ class GymSc2Env(gym.Env):
         info = None
         self.available_actions = observation[0].observation.available_actions
 
-        self.distance = self.distance_next
-        self.marine_center = marine_next
-        self.beacon_center = beacon_next
-
         obs = [state,
                first,
                last,
-               self.distance,
-               self.marine_center,
-               self.beacon_center,
                pysc2_score,
                pysc2_reward]
 
         return obs, reward, done, info
-
-    def calc_distance(self, observation):
-        """
-        Calculates the euclidean distance between beacon and marine.
-        Using feature_screen.selected since marine vanishes behind beacon when
-        using feature_screen.player_relative
-        """
-        actual_obs = observation[0]
-        scrn_player = actual_obs.observation.feature_screen.player_relative
-        scrn_select = actual_obs.observation.feature_screen.selected
-        scrn_density = actual_obs.observation.feature_screen.unit_density
-
-        state_added = scrn_select + scrn_density
-
-        marine_center = np.mean(self.xy_locs(scrn_player == 1), axis=0).round()
-
-        # first step
-        if np.sum(scrn_select) == 0:
-            marine_center = np.mean(self.xy_locs(scrn_player == 1), axis=0).round()
-            # marine behind beacon
-            if isinstance(marine_center, float):
-                marine_center = np.mean(self.xy_locs(state_added == 2), axis=0).round()
-        else:
-            # normal navigation
-            marine_center = np.mean(self.xy_locs(state_added == 2), axis=0).round()
-            if isinstance(marine_center, float):
-                marine_center = np.mean(self.xy_locs(state_added == 3), axis=0).round()
-
-        beacon_center = np.mean(self.xy_locs(scrn_player == 3), axis=0).round()
-        #
-        # print(state_added)
-        # print("---- Marine {} | {} Beacon ----".format(marine_center, beacon_center))
-        # time.sleep(0.2)
-        distance = math.hypot(beacon_center[0] - marine_center[0],
-                              beacon_center[1] - marine_center[1])
-
-        return beacon_center, marine_center, distance
 
     ###########################################################################
     # Gym compatible methods
