@@ -104,7 +104,6 @@ class Base(gym.Env):
             self.visualize = True if env_specs['TEST_VISUALIZE'] == 'True' else False
         else:
             self.visualize = True if env_specs['VISUALIZE'] == True else False
-
         if self.mode == 'learning':
             self.episodes = int(env_specs['EPISODES'])
         else:
