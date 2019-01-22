@@ -10,7 +10,7 @@ Import in python script:
 
 ```
 import gym
-import gym_ghost
+import gym_sc2
 ```
 
 References:
@@ -19,10 +19,10 @@ Example repo: https://github.com/openai/gym-soccer
 
 Deinstallation:
 ```
-pip uninstall sc2_v0
+pip uninstall gym-sc2
 ```
 
 Also remove egg info directory in cloned repository (was created during installation)
 ```
-rm -rf sc2_v0.egg-info/
+rm -rf gym_sc2.egg-info/
 ```
