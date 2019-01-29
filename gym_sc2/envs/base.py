@@ -373,7 +373,8 @@ class Base(gym.Env):
                first,
                last,
                pysc2_score,
-               pysc2_reward]
+               pysc2_reward,
+               self.available_actions]
 
         return obs, reward, done, info
 

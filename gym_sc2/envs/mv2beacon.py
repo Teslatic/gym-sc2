@@ -174,14 +174,16 @@ class Move2Beacon(Base):
         LAST = 2
         PYSC2_SCORE = 3
         PYSC2_REWARD = 4
+        AVAILABLE_ACTIONS = 5
 
         obs_mv2beacon = [obs[STATE],
                obs[FIRST],
                obs[LAST],
+               obs[PYSC2_SCORE],
+               obs[PYSC2_REWARD],
+               obs[AVAILABLE_ACTIONS],
                self.distance,
                self.marine_center,
-               self.beacon_center,
-               obs[PYSC2_SCORE],
-               obs[PYSC2_REWARD]]
+               self.beacon_center]
 
         return obs_mv2beacon, reward, done, info
