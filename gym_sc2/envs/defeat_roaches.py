@@ -15,7 +15,7 @@ import time
 class DefeatRoaches(Base):
     """
     Gym wrapper class for the pysc2 minigame "Defeat roaches".
-    Inherits from GymSc2Base, which is a custom base class.
+    Inherits from Base, which is a custom base class.
     """
 
     def __init__(self):
@@ -34,8 +34,6 @@ class DefeatRoaches(Base):
         return self.retrieve_step_info(observation)
 
     def setup(self, env_specs, mode="learning"):
-
-
         self.grid_dim_x = int(env_specs['GRID_DIM_X'])
         self.grid_dim_y = int(env_specs['GRID_DIM_Y'])
 
@@ -71,6 +69,24 @@ class DefeatRoaches(Base):
         Sparse reward: If the marine hits a beacon reward=1, 0 else
         """
         return observation[0].reward
+
+    def grid_action_fn(self, action):
+        """
+        Input: 1, 2, ... self.factor*self.factor
+        Output: an PYSC2 compatible action that moves the agent to the
+        selected grid point. For further information refer to the methods
+        discretize_xy_grid
+        """
+        if self.can_do(actions.FUNCTIONS.Attack_screen.id):
+            action = actions.FUNCTIONS.Attack_screen("now",
+                                                   (self.xy_space[action][0],
+                                                    self.xy_space[action][1]))
+        elif self.can_do(actions.FUNCTIONS.select_army.id):
+            action = actions.FUNCTIONS.select_army("select")
+        else:
+            action = actions.FUNCTIONS.no_op()
+
+        return action
 
     def retrieve_step_info(self, observation):
         """

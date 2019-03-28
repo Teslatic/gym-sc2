@@ -17,8 +17,6 @@ class Base(gym.Env):
     It is the basic class from which all specific minigame environments should
     inherit.
     """
-    # metadata = {'render.modes': ['human']}
-
     ###########################################################################
     # Initialization, custom setup and resetting
     ###########################################################################
@@ -92,23 +90,22 @@ class Base(gym.Env):
             random_seed: Random number seed to use when initializing the game.
             This lets you run repeatable games/tests.
         """
-        # TODO NOT: Inconsistent check for Trur (Bool snd String)
+        # TODO NOT: Inconsistent check for True (Bool snd String)
 
         # environment file cant be passed to gym make, hence the extra setup
         # function.
         self.step_mul = int(env_specs['STEP_MUL'])
-
-        self.mode = env_specs['MODE']
-
+        # self.mode = env_specs['MODE']
+        self.mode = mode
         if self.mode == 'testing':
-            self.visualize = True if env_specs['TEST_VISUALIZE'] == 'True' else False
-        else:
-            self.visualize = True if env_specs['VISUALIZE'] == True else False
-        if self.mode == 'learning':
+            self.visualize = True if bool(env_specs['TEST_VISUALIZE']) == True else False
+            self.episodes = int(env_specs['TEST_EPISODES'])
+        elif self.mode == 'learning':
+            self.visualize = True if bool(env_specs['VISUALIZE']) == True else False
             self.episodes = int(env_specs['EPISODES'])
         else:
-            self.episodes = int(env_specs['TEST_EPISODES'])
-
+            print("Current mode not known.")
+            exit()
         self.env = sc2_env.SC2Env(
             map_name=self.map_name,
             players=self.players,
@@ -144,7 +141,7 @@ class Base(gym.Env):
             self.env.close()
             self.finished = True
             exit()
-        print("About to reset")
+        print("Environment initialized. Fresh episode starting.")
         return self.env.reset()
 
     def reset(self):
@@ -163,32 +160,13 @@ class Base(gym.Env):
         """
         This method is used to define the action_fn which calculates the
         agent's action into a PYSC2-compatible action.
-        """
-        if action_type == 'compass':
-            return self.compass_action_fn
-        elif action_type == 'grid':
-            self.xy_space = self.discretize_xy_grid()
-            return self.grid_action_fn
-        elif action_type == 'original':
-            return self.original_action_fn
-        else:
-            raise("Specifiy action function!")
-
-    ###########################################################################
-    # Define custom action function
-    ###########################################################################
-
-    def define_action_fn(self, action_type):
-        """
-        This method is used to define the action_fn which calculates the
-        agent's action into a PYSC2-compatible action.
 
         The following action functions are available:
         1. Compass actions: The agent can select the compass actions:
             'left', 'up', 'right', 'down'
         2. Grid actions: The agent can select the index of a grid point:
             eg. 1,2,3 ... self.factor*self.factor
-        3. Original actions: The agent can select the actions in
+        3. Pysc2 actions: The agent can select the actions in
             the standard PYSC2 format: e.g. actions.FUNCTIONS.no_op()
         """
         if action_type == 'compass':
@@ -196,8 +174,10 @@ class Base(gym.Env):
         elif action_type == 'grid':
             self.xy_space = self.discretize_xy_grid()
             return self.grid_action_fn
-        elif action_type == 'original':
-            return self.original_action_fn
+        elif action_type == 'pysc2':
+            return self.pysc2_action_fn
+        elif action_type == 'minigame':
+            return self.minigame_action_fn
         else:
             raise("Specifiy action function!")
 
@@ -212,39 +192,77 @@ class Base(gym.Env):
         if self.can_do(actions.FUNCTIONS.Move_screen.id):
             if action is 'left':
                 if not (self.marine_center[0] <= 0):
-                    return actions.FUNCTIONS.Move_screen("now",
-                                                         self.marine_center +
-                                                         (-self.step_mul, 0))
-            if action is 'up':
+                    target_location = self.marine_center + (-self.step_mul, 0)
+            elif action is 'up':
                 if not (self.marine_center[1] <= 0):
-                    return actions.FUNCTIONS.Move_screen("now",
-                                                         self.marine_center +
-                                                         (0, -self.step_mul))
-            if action is 'right':
+                    target_location = self.marine_center + (0, -self.step_mul)
+            elif action is 'right':
                 if not (self.marine_center[0] >= 83):
-                    return actions.FUNCTIONS.Move_screen("now",
-                                                         self.marine_center +
-                                                         (self.step_mul, 0))
-            if action is 'down':
+                    target_location = self.marine_center + (self.step_mul, 0)
+            elif action is 'down':
                 if not (self.marine_center[1] >= 63):
-                    return actions.FUNCTIONS.Move_screen("now",
-                                                         self.marine_center +
-                                                         (0, self.step_mul))
+                    target_location = self.marine_center + (0, self.step_mul)
+            else:
+                print("Action is not known for compass action space!")
+                exit()
 
-        elif action == 'select_army' and self.can_do(
-                                            actions.FUNCTIONS.select_army.id):
+            target_location = self.check_target_location(target_location)
+            return actions.FUNCTIONS.Move_screen("now", target_location)
+
+        elif self.can_do(actions.FUNCTIONS.select_army.id):
             return actions.FUNCTIONS.select_army("select")
         else:
             return actions.FUNCTIONS.no_op()
 
+    def check_target_location(self, target_location):
+        """
+        Selects a target position within the boundaries.
+        """
+        if (target_location[0] < 0):
+            target_location[0] = 0
+        elif (target_location[0] > 83):
+            target_location[0] = 83
+        if (target_location[1] < 0):
+            target_location[1] = 0
+        elif (target_location[1] > 63):
+            target_location[1] = 63
+        return target_location
 
-    def original_action_fn(self, action):
+    def minigame_action_fn(self, action):
         """
         Input: PYSC2 action index
-        Output: A PYSC2 compatible.
+        Output: A PYSC2 compatible action (in the minigame action space).
         """
+        if not self.can_do(action.id):
+            print("Could not perform action. Performing no_op instead.")
+            return actions.FUNCTIONS.no_op()
+        elif int(action.id) == 0:
+            return actions.FUNCTIONS.no_op()
+        elif int(action.id) == 7:
+            return actions.FUNCTIONS.select_army("select")
+        elif int(action.id) == 331:
+            return actions.FUNCTIONS.Move_screen("now", (14, 35))
+        else:
+            print("Action is not available in the current action space.")
+            return actions.FUNCTIONS.no_op()
 
-        raise NotImplementedError
+    def pysc2_action_fn(self, action):
+        """
+        Input: PYSC2 action index
+        Output: A PYSC2 compatible action.
+        """
+        if not self.can_do(action.id):
+            print("Could not perform action. Performing no_op instead.")
+            return actions.FUNCTIONS.no_op()
+        elif int(action.id) == 0:
+            return actions.FUNCTIONS.no_op()
+        elif int(action.id) == 7:
+            return actions.FUNCTIONS.select_army("select")
+        elif int(action.id) == 331:
+            return actions.FUNCTIONS.Move_screen("now", (14, 35))
+        else:
+            print("Action is not available in the current action space.")
+            return actions.FUNCTIONS.no_op()
 
     def grid_action_fn(self, action):
         """
@@ -289,8 +307,6 @@ class Base(gym.Env):
 
         return list(zip(x, y))
 
-
-
     ###########################################################################
     # Performing a step
     ###########################################################################
@@ -301,7 +317,7 @@ class Base(gym.Env):
         performing the action on the environment.
         """
         pysc2_action = self.action_fn(action)
-        # print('pysc2 action in gym step: {}'.format(pysc2_action))
+        # print("Action sent to env: " + str(action))
         observation = self.env.step([pysc2_action])
 
         return self.retrieve_step_info(observation)
