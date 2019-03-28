@@ -97,11 +97,12 @@ class Base(gym.Env):
         self.step_mul = int(env_specs['STEP_MUL'])
         # self.mode = env_specs['MODE']
         self.mode = mode
+        print(self.mode)
         if self.mode == 'testing':
-            self.visualize = True if bool(env_specs['TEST_VISUALIZE']) == True else False
+            self.visualize = True if (env_specs['TEST_VISUALIZE'] == "True") else False
             self.episodes = int(env_specs['TEST_EPISODES'])
         elif self.mode == 'learning':
-            self.visualize = True if bool(env_specs['VISUALIZE']) == True else False
+            self.visualize = True if (env_specs['VISUALIZE'] == "True") else False
             self.episodes = int(env_specs['EPISODES'])
         else:
             print("Current mode not known.")
